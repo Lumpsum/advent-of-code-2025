@@ -3,24 +3,8 @@
   initialValue ? 50,
 }:
 let
-  lib = pkgs.lib;
-
-  createList =
-    file:
-    let
-      fileContents = builtins.readFile file;
-      splitString = lib.strings.splitString "\n" fileContents;
-    in
-    lib.strings.filter (s: s != "") splitString;
-
-  splitOnIndex =
-    input: splitIndex:
-    let
-      length = builtins.stringLength input;
-      value = builtins.substring splitIndex length input;
-      leftOrRight = if builtins.substring 0 splitIndex input == "L" then "-" + value else value;
-    in
-    lib.strings.toIntBase10 leftOrRight;
+  utils = import ../utils.nix { inherit pkgs; };
+  day1 = import ./day1.nix { inherit pkgs; };
 
   initialSet = {
     currentItem = initialValue;
@@ -30,18 +14,10 @@ let
   calculateValue =
     set: newItem:
     let
-      convertedNewItem = splitOnIndex newItem 1;
-      c = builtins.floor (convertedNewItem / 100);
-      modValue = convertedNewItem - c * 100;
+      setup = day1.setup newItem;
+      modValue = set.currentItem + setup.modValue;
 
-      newValue = set.currentItem + modValue;
-      value =
-        if newValue > 99 then
-          0 + (newValue - 100)
-        else if newValue < 0 then
-          100 + newValue
-        else
-          newValue;
+      value = day1.exactZero modValue;
       result = if value == 0 then set.result + 1 else set.result;
     in
     {
@@ -49,10 +25,36 @@ let
       currentItem = value;
     };
 
-  example = (builtins.foldl' calculateValue initialSet (createList ./example.txt)).result;
-  day1 = (builtins.foldl' calculateValue initialSet (createList ../inputs/day1/day1.txt)).result;
-  day2 = (builtins.foldl' calculateValue initialSet (createList ./example.txt)).result;
+  calculateValueDay2 =
+    set: newItem:
+    let
+      setup = day1.setup newItem;
+
+      modValue = set.currentItem + setup.modValue;
+      value = day1.zeroOrTurned modValue set;
+    in
+    {
+      currentItem = value.moduloValue;
+      result = set.result + setup.posModValue + value.addResult;
+    };
+
+  examplePartOne =
+    (builtins.foldl' calculateValue initialSet (utils.list.createList ./example.txt "\n")).result;
+  examplePartTwo =
+    (builtins.foldl' calculateValueDay2 initialSet (utils.list.createList ./example.txt "\n")).result;
+  partOne =
+    (builtins.foldl' calculateValue initialSet (utils.list.createList ../inputs/day1/input.txt "\n"))
+    .result;
+  partTwo =
+    (builtins.foldl' calculateValueDay2 initialSet (
+      utils.list.createList ../inputs/day1/input.txt "\n"
+    )).result;
 in
 {
-  inherit example day1 day2;
+  inherit
+    examplePartOne
+    examplePartTwo
+    partOne
+    partTwo
+    ;
 }
